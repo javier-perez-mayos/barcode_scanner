@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Modular ISBN Scanner</title>
+    
+    <!-- 1. Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. HTML5-QRCode Library 
+         Note: We load this globally because the Service class uses 'new Html5Qrcode()'
+         without importing it from npm. -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+    <style>
+        /* Basic clean up for the scanner video element */
+        #reader video {
+            object-fit: cover;
+            border-radius: 0.5rem;
+        }
+        /* Hide the library's default text logs */
+        #reader__dashboard_section_csr span { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-white rounded-xl shadow-lg overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-blue-600 p-4 text-white text-center">
+            <h1 class="text-xl font-bold">Book Scanner App</h1>
+            <p class="text-blue-100 text-sm">Modular JS Implementation</p>
+        </div>
+
+        <!-- Scanner Viewport (Target for 'reader') -->
+        <div class="p-4 bg-black min-h-[300px] flex items-center justify-center relative">
+            <!-- This ID 'reader' matches the one passed in app.js -->
+            <div id="reader" class="w-full"></div>
+            
+            <!-- Placeholder text when camera is off -->
+            <div id="camera-placeholder" class="absolute text-gray-500 text-sm">
+                Camera is currently off
+            </div>
+        </div>
+
+        <!-- Controls & Results -->
+        <div class="p-6 space-y-4">
+            
+            <!-- Start Button (Target for 'start-btn') -->
+            <button id="start-btn" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-colors flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                </svg>
+                Activate Scanner
+            </button>
+
+            <!-- Result Area (Target for 'result-area') -->
+            <div id="result-area" class="bg-gray-50 rounded-lg border border-dashed border-gray-300 p-4 text-center text-gray-500 text-sm min-h-[100px] flex flex-col items-center justify-center gap-2">
+                Awaiting scan...
+            </div>
+
+        </div>
+    </div>
+
+    <p class="mt-8 text-gray-400 text-xs text-center max-w-xs">
+        Ensure you are serving this file via HTTPS or Localhost to allow camera permissions.
+    </p>
+
+    <!-- 3. Your Application Logic 
+         IMPORTANT: type="module" is required to use 'import' statements in app.js -->
+    <script type="module" src="app.js"></script>
+
+</body>
+</html>
