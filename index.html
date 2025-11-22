@@ -178,8 +178,17 @@
                 
                 // Start the scanner
                 // facingMode: "environment" forces back camera on mobiles
+                // We add specific constraints for focusMode and resolution to trigger hardware autofocus
+                const videoConstraints = {
+                    facingMode: "environment",
+                    focusMode: "continuous",       // Standard constraint
+                    advanced: [{ focusMode: "continuous" }], // For slightly older browsers
+                    width: { min: 640, ideal: 1280, max: 1920 }, // Higher res often triggers better focus
+                    height: { min: 480, ideal: 720, max: 1080 }
+                };
+
                 await html5QrCode.start(
-                    { facingMode: "environment" }, 
+                    videoConstraints, 
                     config, 
                     onScanSuccess, 
                     onScanFailure
