@@ -2,9 +2,16 @@
 
 export class IsbnScannerService {
     constructor(elementId) {
-        if (!document.getElementById(elementId)) {
+        // Safety check: ensure the library is loaded
+        if (typeof Html5Qrcode === 'undefined') {
+            throw new Error("html5-qrcode library not loaded. Check internet connection.");
+        }
+
+        const element = document.getElementById(elementId);
+        if (!element) {
             throw new Error(`Element with id ${elementId} not found`);
         }
+
         // Initialize the library instance
         this.html5QrCode = new Html5Qrcode(elementId);
         this.isScanning = false;
@@ -26,13 +33,14 @@ export class IsbnScannerService {
             formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13]
         };
 
-        // 2. Advanced Camera Constraints (Autofocus & Resolution)
+        // 2. Camera Constraints 
+        // We use 'ideal' instead of 'min' to prevent crashes on older phones
         const videoConstraints = {
             facingMode: "environment",
             focusMode: "continuous",
             advanced: [{ focusMode: "continuous" }],
-            width: { min: 640, ideal: 1280, max: 1920 },
-            height: { min: 480, ideal: 720, max: 1080 }
+            width: { ideal: 1280 }, 
+            height: { ideal: 720 } 
         };
 
         try {
@@ -40,23 +48,20 @@ export class IsbnScannerService {
                 videoConstraints, 
                 config, 
                 (decodedText, decodedResult) => {
-                    // We wrap the callback to handle state internally if needed
                     if (onScanSuccess) onScanSuccess(decodedText, decodedResult);
                 },
                 (errorMessage) => {
-                    if (onScanError) onScanError(errorMessage);
+                    // Suppress common frame errors to avoid console spam
+                    // Only report if critical
                 }
             );
             this.isScanning = true;
         } catch (err) {
             console.error("Failed to start scanner service:", err);
-            throw err; // Re-throw so the UI knows it failed
+            throw err; 
         }
     }
 
-    /**
-     * Stops the camera stream.
-     */
     async stop() {
         if (!this.isScanning) return;
         
@@ -68,14 +73,8 @@ export class IsbnScannerService {
         }
     }
 
-    /**
-     * Fetches metadata for an ISBN from OpenLibrary.
-     * @param {string} isbn 
-     * @returns {Promise<Object|null>} Book object or null
-     */
     async fetchBookDetails(isbn) {
         const url = `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&jscmd=data&format=json`;
-        
         try {
             const response = await fetch(url);
             const data = await response.json();
