@@ -75,15 +75,41 @@ export class IsbnScannerService {
     }
 
     async fetchBookDetails(isbn) {
-        const url = `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&jscmd=data&format=json`;
+        // 1. Primer intent: OpenLibrary
+        const olUrl = `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&jscmd=data&format=json`;
         try {
-            const response = await fetch(url);
+            const response = await fetch(olUrl);
             const data = await response.json();
             const key = `ISBN:${isbn}`;
-            return data[key] || null;
+            if (data && data[key]) {
+                const book = data[key];
+                book.source = 'openlibrary';
+                return book;
+            }
         } catch (error) {
-            console.error("Service API Error:", error);
-            throw error;
+            console.warn("OpenLibrary error, intentaré Google Books:", error);
         }
+
+        // 2. Fallback: Google Books
+        const gbUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`;
+        try {
+            const response = await fetch(gbUrl);
+            const data = await response.json();
+            if (data && Array.isArray(data.items) && data.items.length > 0) {
+                const volume = data.items[0].volumeInfo || {};
+                const mapped = {
+                    title: volume.title || 'Unknown Title',
+                    authors: volume.authors ? volume.authors.map(a => ({ name: a })) : undefined,
+                    cover: volume.imageLinks ? { medium: (volume.imageLinks.thumbnail || volume.imageLinks.smallThumbnail || '').replace('http://','https://') } : undefined,
+                    source: 'google'
+                };
+                return mapped;
+            }
+        } catch (error) {
+            console.warn("Google Books error:", error);
+        }
+
+        // 3. Cap resultat
+        return null;
     }
 }
