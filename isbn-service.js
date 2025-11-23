@@ -22,39 +22,40 @@ export class IsbnScannerService {
      * @param {Function} onScanSuccess - Callback when an ISBN is found (returns text).
      * @param {Function} onScanError - (Optional) Callback for frame errors.
      */
-    async start(onScanSuccess, onScanError = null) {
+    async start(onScanSuccess, deviceId = null, onScanError = null) {
         if (this.isScanning) return;
 
-        // 1. Configuration for ISBN (EAN-13)
+        // Configuration for ISBN (EAN-13) including video constraints (moved here per html5-qrcode expectations)
         const config = {
             fps: 10,
             qrbox: { width: 250, height: 150 },
             aspectRatio: 1.0,
-            formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13]
-        };
-
-        // 2. Camera Constraints 
-        // We use 'ideal' instead of 'min' to prevent crashes on older phones
-        const videoConstraints = {
-            facingMode: "environment",
-            focusMode: "continuous",
-            advanced: [{ focusMode: "continuous" }],
-            width: { ideal: 1280 }, 
-            height: { ideal: 720 } 
+            formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13],
+            videoConstraints: {
+                facingMode: "environment",
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                focusMode: "continuous",
+                advanced: [{ focusMode: "continuous" }]
+            }
         };
 
         try {
-            await this.html5QrCode.start(
-                videoConstraints, 
-                config, 
-                (decodedText, decodedResult) => {
-                    if (onScanSuccess) onScanSuccess(decodedText, decodedResult);
-                },
-                (errorMessage) => {
-                    // Suppress common frame errors to avoid console spam
-                    // Only report if critical
-                }
-            );
+            if (deviceId) {
+                await this.html5QrCode.start(
+                    deviceId,
+                    config,
+                    (decodedText) => { if (onScanSuccess) onScanSuccess(decodedText); },
+                    () => {}
+                );
+            } else {
+                await this.html5QrCode.start(
+                    { facingMode: "environment" }, // single-key object required
+                    config,
+                    (decodedText) => { if (onScanSuccess) onScanSuccess(decodedText); },
+                    () => {}
+                );
+            }
             this.isScanning = true;
         } catch (err) {
             console.error("Failed to start scanner service:", err);

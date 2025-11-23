@@ -1,9 +1,12 @@
-import { IsbnScannerService } from './isbn_service.js';
+import { IsbnScannerService } from './isbn-service.js';
 
 // Elements
 const startBtn = document.getElementById('start-btn');
 const resultDiv = document.getElementById('result-area');
 const readerDiv = document.getElementById('reader');
+const cameraPlaceholder = document.getElementById('camera-placeholder');
+const cameraSelectWrapper = document.getElementById('camera-select-wrapper');
+const cameraSelect = document.getElementById('camera-select');
 
 let scannerService = null;
 
@@ -16,12 +19,38 @@ try {
     startBtn.innerText = "System Error";
 }
 
+// Enumerate cameras early
+initCameraSelection();
+
+async function initCameraSelection() {
+    if (!scannerService) return;
+    try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (!cameras || cameras.length === 0) {
+            cameraSelectWrapper.classList.add('hidden');
+            return;
+        }
+        cameraSelect.innerHTML = '';
+        cameras.forEach((cam, idx) => {
+            const opt = document.createElement('option');
+            opt.value = cam.id;
+            opt.textContent = cam.label || `Camera ${idx + 1}`;
+            cameraSelect.appendChild(opt);
+        });
+        cameraSelectWrapper.classList.remove('hidden');
+    } catch (e) {
+        console.warn('Camera enumeration failed:', e);
+        cameraSelectWrapper.classList.add('hidden');
+    }
+}
+
 // Success Callback
 const handleSuccessfulScan = async (isbn) => {
     console.log("Scanned ISBN:", isbn);
     
     // Stop camera
     await scannerService.stop();
+    if (cameraPlaceholder) cameraPlaceholder.classList.remove('hidden');
     
     // Reset Button
     startBtn.innerHTML = `Activate Scanner`;
@@ -71,7 +100,9 @@ if (startBtn && scannerService) {
             resultDiv.innerText = "Requesting camera permission...";
 
             // Start Scanner
-            await scannerService.start(handleSuccessfulScan);
+            const selectedDeviceId = cameraSelect && cameraSelect.value ? cameraSelect.value : null;
+            await scannerService.start(handleSuccessfulScan, selectedDeviceId);
+            if (cameraPlaceholder) cameraPlaceholder.classList.add('hidden');
             
             // If successful start
             resultDiv.innerText = "Scanning... Point at an ISBN barcode.";
