@@ -81,6 +81,11 @@
                     </svg>
                 </div>
                 <p class="text-center text-gray-600 mb-6">Point your camera at the barcode on the back of a book.</p>
+                <!-- Camera selection (hidden until cameras enumerated) -->
+                <div class="w-full mb-4 hidden" id="camera-select-wrapper">
+                    <label for="camera-select" class="block text-xs font-semibold text-gray-500 mb-1">Camera</label>
+                    <select id="camera-select" class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                </div>
                 <button id="start-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow transition-colors flex items-center justify-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -154,6 +159,8 @@
         const noCover = document.getElementById('no-cover');
         const amazonLink = document.getElementById('amazon-link');
         const scanSound = document.getElementById('scan-sound');
+        const cameraSelectWrapper = document.getElementById('camera-select-wrapper');
+        const cameraSelect = document.getElementById('camera-select');
 
         let isScanning = false;
 
@@ -162,11 +169,45 @@
             fps: 10,
             qrbox: { width: 250, height: 150 }, // Rectangular box for barcodes
             aspectRatio: 1.0,
-            formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13 ] // Optimize for ISBN
+            formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13 ], // Optimize for ISBN
+            // Move video constraints here (second argument accepts extended config)
+            videoConstraints: {
+                facingMode: "environment",
+                width: { min: 640, ideal: 1280, max: 1920 },
+                height: { min: 480, ideal: 720, max: 1080 },
+                focusMode: "continuous",
+                advanced: [{ focusMode: "continuous" }]
+            }
         };
 
         startBtn.addEventListener('click', startScanning);
         stopBtn.addEventListener('click', stopScanning);
+
+        // Enumerate cameras early (permission prompt may appear)
+        initCameraSelection();
+
+        async function initCameraSelection() {
+            try {
+                const cameras = await Html5Qrcode.getCameras();
+                if (!cameras || cameras.length === 0) {
+                    cameraSelectWrapper.classList.add('hidden');
+                    return;
+                }
+                // Populate select
+                cameraSelect.innerHTML = '';
+                cameras.forEach((cam, idx) => {
+                    const opt = document.createElement('option');
+                    opt.value = cam.id;
+                    opt.textContent = cam.label || `Camera ${idx + 1}`;
+                    cameraSelect.appendChild(opt);
+                });
+                cameraSelectWrapper.classList.remove('hidden');
+                // If only one camera, keep it visible for info but could hide if desired
+            } catch (e) {
+                console.warn('Camera enumeration failed, fallback to facingMode.', e);
+                cameraSelectWrapper.classList.add('hidden');
+            }
+        }
 
         async function startScanning() {
             try {
@@ -177,22 +218,25 @@
                 errorMsg.classList.add('hidden');
                 
                 // Start the scanner
-                // facingMode: "environment" forces back camera on mobiles
-                // We add specific constraints for focusMode and resolution to trigger hardware autofocus
-                const videoConstraints = {
-                    facingMode: "environment",
-                    focusMode: "continuous",       // Standard constraint
-                    advanced: [{ focusMode: "continuous" }], // For slightly older browsers
-                    width: { min: 640, ideal: 1280, max: 1920 }, // Higher res often triggers better focus
-                    height: { min: 480, ideal: 720, max: 1080 }
-                };
-
-                await html5QrCode.start(
-                    videoConstraints, 
-                    config, 
-                    onScanSuccess, 
-                    onScanFailure
-                );
+                // Pass a single-key object as first param (camera selector)
+                const selectedDeviceId = cameraSelect && cameraSelect.value;
+                if (selectedDeviceId) {
+                    // Start by deviceId (string)
+                    await html5QrCode.start(
+                        selectedDeviceId,
+                        config,
+                        onScanSuccess,
+                        onScanFailure
+                    );
+                } else {
+                    // Fallback using facingMode
+                    await html5QrCode.start(
+                        { facingMode: "environment" },
+                        config,
+                        onScanSuccess,
+                        onScanFailure
+                    );
+                }
                 
                 isScanning = true;
                 scanOverlay.classList.remove('hidden'); // Show the red laser line
