@@ -112,4 +112,45 @@ export class IsbnScannerService {
         // 3. Cap resultat
         return null;
     }
+
+    /**
+     * Attempts to retrieve a cover image URL for a given ISBN.
+     * Priority:
+     * 1. OpenLibrary direct cover endpoint
+     * 2. Google Books thumbnail
+     * Returns null if none found.
+     * @param {string} isbn
+     * @returns {Promise<string|null>} cover URL or null
+     */
+    async getCoverUrl(isbn) {
+        // 1. OpenLibrary Cover (does not require API call for metadata)
+        const olCover = `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`;
+        try {
+            // HEAD request to verify existence (OpenLibrary returns 404 if not found)
+            const headResp = await fetch(olCover, { method: 'HEAD' });
+            if (headResp.ok) {
+                return olCover;
+            }
+        } catch (e) {
+            console.warn('OpenLibrary cover HEAD failed', e);
+        }
+
+        // 2. Google Books fallback
+        const gbUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`;
+        try {
+            const resp = await fetch(gbUrl);
+            const data = await resp.json();
+            if (data && Array.isArray(data.items) && data.items.length > 0) {
+                const imgLinks = data.items[0].volumeInfo?.imageLinks;
+                if (imgLinks) {
+                    const candidate = imgLinks.thumbnail || imgLinks.smallThumbnail;
+                    if (candidate) return candidate.replace('http://','https://');
+                }
+            }
+        } catch (e) {
+            console.warn('Google Books cover fetch failed', e);
+        }
+
+        return null;
+    }
 }

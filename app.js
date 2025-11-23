@@ -67,17 +67,30 @@ const handleSuccessfulScan = async (isbn) => {
     // Fetch Data
     try {
         const book = await scannerService.fetchBookDetails(isbn);
+        let coverUrl = book?.cover?.medium;
+        if (!coverUrl) {
+            coverUrl = await scannerService.getCoverUrl(isbn);
+        }
         if (book) {
             resultDiv.innerHTML = `
                 <div class="flex flex-col items-center gap-2">
-                    <img src="${book.cover?.medium || 'https://via.placeholder.com/100x150?text=No+Cover'}" class="w-24 h-36 object-cover shadow-md rounded" />
+                    <img src="${coverUrl || 'https://via.placeholder.com/100x150?text=No+Cover'}" onerror="this.src='https://via.placeholder.com/100x150?text=No+Cover'" class="w-24 h-36 object-cover shadow-md rounded" />
                     <h3 class="font-bold text-gray-800">${book.title}</h3>
                     <p class="text-xs text-gray-500">${book.authors ? book.authors.map(a => a.name).join(", ") : "Unknown Author"}</p>
                     <div class="bg-gray-200 px-2 py-1 rounded text-xs font-mono">${isbn}</div>
+                    <span class="text-[10px] text-gray-400">Source: ${book.source || 'unknown'}</span>
                 </div>
             `;
         } else {
-            resultDiv.innerHTML = `<span class="text-yellow-600">ISBN ${isbn} scanned, but no details found in OpenLibrary.</span>`;
+            // Attempt cover retrieval even if metadata missing
+            const fallbackCover = coverUrl || 'https://via.placeholder.com/100x150?text=No+Cover';
+            resultDiv.innerHTML = `
+                <div class="flex flex-col items-center gap-2">
+                    <img src="${fallbackCover}" onerror="this.src='https://via.placeholder.com/100x150?text=No+Cover'" class="w-24 h-36 object-cover shadow-md rounded" />
+                    <p class="text-yellow-700 text-sm">No metadata found.</p>
+                    <div class="bg-gray-200 px-2 py-1 rounded text-xs font-mono">${isbn}</div>
+                </div>
+            `;
         }
     } catch (e) {
         resultDiv.innerHTML = `<span class="text-red-600">Network Error: Could not fetch book details.</span>`;
